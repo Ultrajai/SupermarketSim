@@ -10,6 +10,7 @@ LOW_INTENSITY_INTERVAL = 90.0
 MEDIUM_INTENTSITY_INTERVAL = 30.0
 HIGH_INTENSITY_INTERVAL = 18.0
 SHOPPING_TIME = 60.0
+RESTOKE_TIME = 300.0
 MAX_CAPACITY = 500
 MAX_CAPACITY_COVID = 250
 MAX_STOCK = 200
@@ -19,15 +20,49 @@ PRODUCT_LIST = ['Frozen Foods', 'Non-Frozen Foods', 'Beverages', 'Non-Prescripti
 frozenFoodStock = 200
 nonFrozenFoodStock = 200
 beverageStock = 200
-nonPresecriptionMedicineStock = 200
-prescriptionMedicineStock = 200
-meatStock = 200
-pasteryStock = 200
+nonPrescriptionMedicineStock = 200
+restockingFrozenFood = False
+restockingNonFrozenFood = False
+restockingBeverage = False
+restockingNonPrescriptionMedicine = False
 
 # Data Variables
 arrivalTimes = []
 
+def FrozenFoodRestockProcess(env):
+    global frozenFoodStock, restockingFrozenFood
+    print('Restocking Frozen Food at %7.4f' % env.now)
+    restockTime = random.expovariate(1.0/RESTOKE_TIME)
+    yield env.timeout(restockTime)
+    frozenFoodStock = 200
+    restockingFrozenFood = False
+
+def NonFrozenFoodRestockProcess(env):
+    global nonFrozenFoodStock, restockingNonFrozenFood
+    print('Restocking Non-Frozen Food at %7.4f' % env.now)
+    restockTime = random.expovariate(1.0/RESTOKE_TIME)
+    yield env.timeout(restockTime)
+    nonFrozenFoodStock = 200
+    restockingNonFrozenFood = False
+
+def BeverageRestockProcess(env):
+    global beverageStock, restockingBeverage
+    print('Restocking Beverage at %7.4f' % env.now)
+    restockTime = random.expovariate(1.0/RESTOKE_TIME)
+    yield env.timeout(restockTime)
+    beverageStock = 200
+    restockingBeverage = False
+
+def NonPrescriptionMedicineRestockProcess(env):
+    global nonPrescriptionMedicineStock, restockingNonPrescriptionMedicine
+    print('Restocking Non-Prescription Medicine at %7.4f' % env.now)
+    restockTime = random.expovariate(1.0/RESTOKE_TIME)
+    yield env.timeout(restockTime)
+    nonPrescriptionMedicineStock = 200
+    restockingNonPrescriptionMedicine = False
+
 def WeekDaySource(env):
+    global frozenFoodStock, nonFrozenFoodStock, beverageStock, nonPrescriptionMedicineStock, restockingFrozenFood, restockingNonFrozenFood, restockingBeverage, restockingNonPrescriptionMedicine
     customerNum = 1
     interArrival = 0.0
     while env.now < 54000.0: # 15 hour work day in seconds
@@ -38,7 +73,11 @@ def WeekDaySource(env):
 
         #print(shoppingList)
 
-        #print("customer %d arrived at %7.4f" % (customerNum, env.now))
+        print("customer %d arrived at %7.4f" % (customerNum, env.now))
+
+        s = Shopping(env, "Customer %02d" % customerNum, shoppingList)
+
+        env.process(s)
 
         if env.now < 14400.0:
             interArrival = random.expovariate(1.0/LOW_INTENSITY_INTERVAL)
@@ -53,11 +92,28 @@ def WeekDaySource(env):
 
         #print("interArrival Time %7.4f at %7.4f" % (interArrival, env.now))
 
+        if(frozenFoodStock < 50 and not restockingFrozenFood):
+            restockingFrozenFood = True
+            env.process(FrozenFoodRestockProcess(env))
+
+        if(nonFrozenFoodStock < 50 and not restockingNonFrozenFood):
+            restockingNonFrozenFood = True
+            env.process(NonFrozenFoodRestockProcess(env))
+
+        if(beverageStock < 50 and not restockingBeverage):
+            restockingBeverage = True
+            env.process(BeverageRestockProcess(env))
+
+        if(nonPrescriptionMedicineStock < 50 and not restockingNonPrescriptionMedicine):
+            restockingNonPrescriptionMedicine = True
+            env.process(NonPrescriptionMedicineRestockProcess(env))
+
         customerNum += 1
 
         yield env.timeout(interArrival)
 
 def WeekEndSource(env):
+    global frozenFoodStock, nonFrozenFoodStock, beverageStock, nonPrescriptionMedicineStock, restockingFrozenFood, restockingNonFrozenFood, restockingBeverage, restockingNonPrescriptionMedicine
     customerNum = 1
     interArrival = 0.0
     while env.now < 54000.0: # 15 hour work day in seconds
@@ -68,7 +124,11 @@ def WeekEndSource(env):
 
         #print(shoppingList)
 
-        #print("customer %d arrived at %7.4f" % (customerNum, env.now))
+        print("customer %d arrived at %7.4f" % (customerNum, env.now))
+
+        s = Shopping(env, "Customer %02d" % customerNum, shoppingList)
+
+        env.process(s)
 
         if env.now < 3600.0:
             interArrival = random.expovariate(1.0/LOW_INTENSITY_INTERVAL)
@@ -83,29 +143,57 @@ def WeekEndSource(env):
 
         #print("interArrival Time %7.4f at %7.4f" % (interArrival, env.now))
 
+        if(frozenFoodStock < 50 and not restockingFrozenFood):
+            restockingFrozenFood = True
+            env.process(FrozenFoodRestockProcess(env))
+
+        if(nonFrozenFoodStock < 50 and not restockingNonFrozenFood):
+            restockingNonFrozenFood = True
+            env.process(NonFrozenFoodRestockProcess(env))
+
+        if(beverageStock < 50 and not restockingBeverage):
+            restockingBeverage = True
+            env.process(BeverageRestockProcess(env))
+
+        if(nonPrescriptionMedicineStock < 50 and not restockingNonPrescriptionMedicine):
+            restockingNonPrescriptionMedicine = True
+            env.process(NonPrescriptionMedicineRestockProcess(env))
+
         customerNum += 1
 
         yield env.timeout(interArrival)
 
 def Shopping(env, name, shoppingList):
+
+    global frozenFoodStock, nonFrozenFoodStock, beverageStock, nonPrescriptionMedicineStock
+
     for i in range(0, len(shoppingList)):
+
+        if shoppingList[i] == "Prescription Medicine":
+            print('enter pharmacy queue')
+            continue
+        elif shoppingList[i] == "Meat":
+            print('enter butcher queue')
+            continue
+        elif shoppingList[i] == "Pasteries":
+            print('enter bakery queue')
+            continue
+
         shoppingTime = random.expovariate(1.0/SHOPPING_TIME)
-        yield env.timeout()
+        yield env.timeout(shoppingTime)
 
         if shoppingList[i] == "Frozen Foods":
+            print('%s Taking 1 stock of Frozen Foods at %7.4f' % (name, env.now))
             frozenFoodStock -= 1
         elif shoppingList[i] == "Non-Frozen Foods":
+            print('%s Taking 1 stock of Non-Frozen Foods at %7.4f' % (name, env.now))
             nonFrozenFoodStock -= 1
         elif shoppingList[i] == "Beverages":
+            print('%s Taking 1 stock of Beverages at %7.4f' % (name, env.now))
             beverageStock -= 1
         elif shoppingList[i] == "Non-Prescription Medicine":
-            nonPresecriptionMedicineStock -= 1
-        elif shoppingList[i] == "Prescription Medicine":
-            prescriptionMedicineStock -= 1
-        elif shoppingList[i] == "Meat":
-            meatStock -= 1
-        elif shoppingList[i] == "Pasteries":
-            pasteryStock -= 1
+            print('%s Taking 1 stock of Non-Prescription Medicine at %7.4f' % (name, env.now))
+            nonPrescriptionMedicineStock -= 1
 
 random.seed(RANDOM_SEED)
 env = simpy.Environment()
