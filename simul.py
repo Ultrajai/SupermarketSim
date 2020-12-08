@@ -9,10 +9,12 @@ RANDOM_SEED = random.randint(0,10000)
 LOW_INTENSITY_INTERVAL = 90.0
 MEDIUM_INTENTSITY_INTERVAL = 30.0
 HIGH_INTENSITY_INTERVAL = 18.0
+
 SHOPPING_TIME = 60.0
 RESTOKE_TIME = 300.0
-MAX_CAPACITY = 500
-MAX_CAPACITY_COVID = 250
+CHECKOUT_SERVICE_TIME = 240.0
+OTHER_QUEUE_SERVICE_TIME = 60.0
+
 MAX_STOCK = 200
 PRODUCT_LIST = ['Frozen Foods', 'Non-Frozen Foods', 'Beverages', 'Non-Prescription Medicine', 'Prescription Medicine', 'Meat', 'Pasteries']
 
@@ -26,8 +28,12 @@ restockingNonFrozenFood = False
 restockingBeverage = False
 restockingNonPrescriptionMedicine = False
 
+# Store variables
+capacity = 500
+
 # Data Variables
 arrivalTimes = []
+storeCapacity = []
 
 def FrozenFoodRestockProcess(env):
     global frozenFoodStock, restockingFrozenFood
@@ -62,104 +68,122 @@ def NonPrescriptionMedicineRestockProcess(env):
     restockingNonPrescriptionMedicine = False
 
 def WeekDaySource(env):
-    global frozenFoodStock, nonFrozenFoodStock, beverageStock, nonPrescriptionMedicineStock, restockingFrozenFood, restockingNonFrozenFood, restockingBeverage, restockingNonPrescriptionMedicine
+    global frozenFoodStock, nonFrozenFoodStock, beverageStock, nonPrescriptionMedicineStock, restockingFrozenFood, restockingNonFrozenFood, restockingBeverage, restockingNonPrescriptionMedicine, capacity
     customerNum = 1
     interArrival = 0.0
+
     while env.now < 54000.0: # 15 hour work day in seconds
 
-        arrivalTimes.append(env.now)
+        storeCapacity.append(capacity)
 
-        shoppingList = GenerateShoppingList()
+        if capacity == 0:
+            print('Customer tried to enter the store but was full')
+        else:
 
-        #print(shoppingList)
+            capacity -= 1
 
-        print("customer %d arrived at %7.4f" % (customerNum, env.now))
+            arrivalTimes.append(env.now)
 
-        s = Shopping(env, "Customer %02d" % customerNum, shoppingList)
+            shoppingList = GenerateShoppingList()
 
-        env.process(s)
+            #print(shoppingList)
 
-        if env.now < 14400.0:
-            interArrival = random.expovariate(1.0 / LOW_INTENSITY_INTERVAL)
-        elif env.now < 32400.0:
-            interArrival = random.expovariate(1.0 / MEDIUM_INTENTSITY_INTERVAL)
-        elif env.now < 46800.0:
-            interArrival = random.expovariate(1.0 / HIGH_INTENSITY_INTERVAL)
-        elif env.now < 50400.0:
-            interArrival = random.expovariate(1.0 / MEDIUM_INTENTSITY_INTERVAL)
-        elif env.now < 54000.0:
-            interArrival = random.expovariate(1.0 / LOW_INTENSITY_INTERVAL)
+            print("customer %02d arrived at %7.4f" % (customerNum, env.now))
 
-        #print("interArrival Time %7.4f at %7.4f" % (interArrival, env.now))
+            s = Shopping(env, "Customer %02d" % customerNum, shoppingList)
 
-        if frozenFoodStock < 50 and not restockingFrozenFood:
-            restockingFrozenFood = True
-            env.process(FrozenFoodRestockProcess(env))
+            env.process(s)
 
-        if nonFrozenFoodStock < 50 and not restockingNonFrozenFood:
-            restockingNonFrozenFood = True
-            env.process(NonFrozenFoodRestockProcess(env))
+            if env.now < 14400.0:
+                interArrival = random.expovariate(1.0 / LOW_INTENSITY_INTERVAL)
+            elif env.now < 32400.0:
+                interArrival = random.expovariate(1.0 / MEDIUM_INTENTSITY_INTERVAL)
+            elif env.now < 46800.0:
+                interArrival = random.expovariate(1.0 / HIGH_INTENSITY_INTERVAL)
+            elif env.now < 50400.0:
+                interArrival = random.expovariate(1.0 / MEDIUM_INTENTSITY_INTERVAL)
+            elif env.now < 54000.0:
+                interArrival = random.expovariate(1.0 / LOW_INTENSITY_INTERVAL)
 
-        if beverageStock < 50 and not restockingBeverage:
-            restockingBeverage = True
-            env.process(BeverageRestockProcess(env))
+            #print("interArrival Time %7.4f at %7.4f" % (interArrival, env.now))
 
-        if nonPrescriptionMedicineStock < 50 and not restockingNonPrescriptionMedicine:
-            restockingNonPrescriptionMedicine = True
-            env.process(NonPrescriptionMedicineRestockProcess(env))
+            if frozenFoodStock < 50 and not restockingFrozenFood:
+                restockingFrozenFood = True
+                env.process(FrozenFoodRestockProcess(env))
 
-        customerNum += 1
+            if nonFrozenFoodStock < 50 and not restockingNonFrozenFood:
+                restockingNonFrozenFood = True
+                env.process(NonFrozenFoodRestockProcess(env))
+
+            if beverageStock < 50 and not restockingBeverage:
+                restockingBeverage = True
+                env.process(BeverageRestockProcess(env))
+
+            if nonPrescriptionMedicineStock < 50 and not restockingNonPrescriptionMedicine:
+                restockingNonPrescriptionMedicine = True
+                env.process(NonPrescriptionMedicineRestockProcess(env))
+
+            customerNum += 1
 
         yield env.timeout(interArrival)
 
 def WeekEndSource(env):
-    global frozenFoodStock, nonFrozenFoodStock, beverageStock, nonPrescriptionMedicineStock, restockingFrozenFood, restockingNonFrozenFood, restockingBeverage, restockingNonPrescriptionMedicine
+    global frozenFoodStock, nonFrozenFoodStock, beverageStock, nonPrescriptionMedicineStock, restockingFrozenFood, restockingNonFrozenFood, restockingBeverage, restockingNonPrescriptionMedicine, capacity
     customerNum = 1
     interArrival = 0.0
+
     while env.now < 54000.0: # 15 hour work day in seconds
 
-        arrivalTimes.append(env.now)
+        storeCapacity.append(capacity)
 
-        shoppingList = GenerateShoppingList()
+        if capacity == 0:
+            print('Customer tried to enter the store but was full')
+        else:
 
-        #print(shoppingList)
+            capacity -= 1
 
-        print("customer %d arrived at %7.4f" % (customerNum, env.now))
+            arrivalTimes.append(env.now)
 
-        s = Shopping(env, "Customer %02d" % customerNum, shoppingList)
+            shoppingList = GenerateShoppingList()
 
-        env.process(s)
+            #print(shoppingList)
 
-        if env.now < 3600.0:
-            interArrival = random.expovariate(1.0 / LOW_INTENSITY_INTERVAL)
-        elif env.now < 14400.0:
-            interArrival = random.expovariate(1.0 / MEDIUM_INTENTSITY_INTERVAL)
-        elif env.now < 43200.0:
-            interArrival = random.expovariate(1.0 / HIGH_INTENSITY_INTERVAL)
-        elif env.now < 50400.0:
-            interArrival = random.expovariate(1.0 / MEDIUM_INTENTSITY_INTERVAL)
-        elif env.now < 54000.0:
-            interArrival = random.expovariate(1.0 / LOW_INTENSITY_INTERVAL)
+            print("customer %d arrived at %7.4f" % (customerNum, env.now))
 
-        #print("interArrival Time %7.4f at %7.4f" % (interArrival, env.now))
+            s = Shopping(env, "Customer %02d" % customerNum, shoppingList)
 
-        if frozenFoodStock < 50 and not restockingFrozenFood:
-            restockingFrozenFood = True
-            env.process(FrozenFoodRestockProcess(env))
+            env.process(s)
 
-        if nonFrozenFoodStock < 50 and not restockingNonFrozenFood:
-            restockingNonFrozenFood = True
-            env.process(NonFrozenFoodRestockProcess(env))
+            if env.now < 3600.0:
+                interArrival = random.expovariate(1.0 / LOW_INTENSITY_INTERVAL)
+            elif env.now < 14400.0:
+                interArrival = random.expovariate(1.0 / MEDIUM_INTENTSITY_INTERVAL)
+            elif env.now < 43200.0:
+                interArrival = random.expovariate(1.0 / HIGH_INTENSITY_INTERVAL)
+            elif env.now < 50400.0:
+                interArrival = random.expovariate(1.0 / MEDIUM_INTENTSITY_INTERVAL)
+            elif env.now < 54000.0:
+                interArrival = random.expovariate(1.0 / LOW_INTENSITY_INTERVAL)
 
-        if beverageStock < 50 and not restockingBeverage:
-            restockingBeverage = True
-            env.process(BeverageRestockProcess(env))
+            #print("interArrival Time %7.4f at %7.4f" % (interArrival, env.now))
 
-        if nonPrescriptionMedicineStock < 50 and not restockingNonPrescriptionMedicine:
-            restockingNonPrescriptionMedicine = True
-            env.process(NonPrescriptionMedicineRestockProcess(env))
+            if frozenFoodStock < 50 and not restockingFrozenFood:
+                restockingFrozenFood = True
+                env.process(FrozenFoodRestockProcess(env))
 
-        customerNum += 1
+            if nonFrozenFoodStock < 50 and not restockingNonFrozenFood:
+                restockingNonFrozenFood = True
+                env.process(NonFrozenFoodRestockProcess(env))
+
+            if beverageStock < 50 and not restockingBeverage:
+                restockingBeverage = True
+                env.process(BeverageRestockProcess(env))
+
+            if nonPrescriptionMedicineStock < 50 and not restockingNonPrescriptionMedicine:
+                restockingNonPrescriptionMedicine = True
+                env.process(NonPrescriptionMedicineRestockProcess(env))
+
+            customerNum += 1
 
         yield env.timeout(interArrival)
 
@@ -187,23 +211,23 @@ def GenerateShoppingList():
 
 def Shopping(env, name, shoppingList):
 
-    global frozenFoodStock, nonFrozenFoodStock, beverageStock, nonPrescriptionMedicineStock
+    global frozenFoodStock, nonFrozenFoodStock, beverageStock, nonPrescriptionMedicineStock, capacity
 
     for i in range(0, len(shoppingList)):
 
         if shoppingList[i] == "Prescription Medicine":
             print('%s enters pharmacy queue (Queue length: %d)' % (name, len(pharmacy.queue)))
-            yield env.process(UseResource(env, pharmacy, 60.0))
+            yield env.process(UseResource(env, name, pharmacy, OTHER_QUEUE_SERVICE_TIME))
             print('%s exits pharmacy queue' % name)
             continue
         elif shoppingList[i] == "Meat":
             print('%s enters butcher queue (Queue length: %d)' % (name, len(butcher.queue)))
-            yield env.process(UseResource(env, butcher, 60.0))
+            yield env.process(UseResource(env, name, butcher, OTHER_QUEUE_SERVICE_TIME))
             print('%s exits butcher queue' % name)
             continue
         elif shoppingList[i] == "Pasteries":
             print('%s enters bakery queue (Queue length: %d)' % (name, len(bakery.queue)))
-            yield env.process(UseResource(env, bakery, 60.0))
+            yield env.process(UseResource(env, name, bakery, OTHER_QUEUE_SERVICE_TIME))
             print('%s exits bakery queue' % name)
             continue
 
@@ -223,14 +247,43 @@ def Shopping(env, name, shoppingList):
             print('%s Taking 1 stock of Non-Prescription Medicine at %7.4f' % (name, env.now))
             nonPrescriptionMedicineStock -= 1
 
-def UseResource(env, resource, serviceTime):
+    env.process(Checkout(env, name))
+    capacity += 1
+
+def Checkout(env, name):
+
+    currentMin = len(cashiers[0].queue)
+    selectedStation = cashiers[0]
+
+    for station in cashiers:
+        if currentMin > len(station.queue):
+            currentMin = len(station.queue)
+            selectedStation = station
+
+    if currentMin > len(selfCheckout.queue):
+        selectedStation = selfCheckout
+        print('%s Entering self-checkout queue (Queue Length: %d)' % (name, len(selectedStation.queue)))
+    elif (len(selfCheckout.queue) - currentMin) < 10:
+        selectedStation = selfCheckout
+        print('%s Entering self-checkout queue (Queue Length: %d)' % (name, len(selectedStation.queue)))
+    else:
+        print('%s Entering cashier checkout queue (Queue Length: %d)' % (name, len(selectedStation.queue)))
+
+
+    yield env.process(UseResource(env, name, selectedStation, CHECKOUT_SERVICE_TIME))
+    print('%s Exiting checkout queue' % name)
+
+def UseResource(env, name, resource, serviceTime):
     with resource.request() as req:
 
-        results = yield req | env.timeout(10000.0)
+        results = yield req | env.timeout(5400.0) # customer can wait 1.5 hr
 
         if req in results:
             tis = random.expovariate(1.0 / serviceTime)
             yield env.timeout(tis)
+        else:
+            print('Customer %s left the Queue' % name)
+
 
 random.seed(RANDOM_SEED)
 env = simpy.Environment()
@@ -242,13 +295,16 @@ bakery = simpy.Resource(env, capacity=1)
 butcher = simpy.Resource(env, capacity=1)
 pharmacy = simpy.Resource(env, capacity=1)
 
-env.process(WeekDaySource(env))
+env.process(WeekEndSource(env))
 env.run()
 
-
-plt.subplot(1,1,1)
-counts, bins = np.histogram(arrivalTimes,16)
+plt.subplot(2,2,1)
+counts, bins = np.histogram(arrivalTimes,50)
 plt.hist(bins[:-1], bins, weights=counts)
 plt.title('Arrival Times')
+
+plt.subplot(2,2,2)
+plt.plot(storeCapacity)
+plt.title('Capacity')
 
 plt.show()
