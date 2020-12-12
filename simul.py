@@ -34,6 +34,8 @@ capacity = 500
 # Data Variables
 arrivalTimes = []
 storeCapacity = []
+listOfUncollectedGoods = []
+stocksAtTime = []
 
 def FrozenFoodRestockProcess(env):
     global frozenFoodStock, restockingFrozenFood
@@ -73,6 +75,8 @@ def WeekDaySource(env):
     interArrival = 0.0
 
     while env.now < 54000.0: # 15 hour work day in seconds
+
+        stocksAtTime.append(frozenFoodStock)
 
         storeCapacity.append(capacity)
 
@@ -191,7 +195,7 @@ def GenerateShoppingList():
     shoppingList = []
     rngList = [random.random(),random.random(),random.random(),random.random(),random.random(),random.random(),random.random()]
 
-    for i in range(0,6):
+    for i in range(0,7):
         if i == 0 and rngList[i] < 0.50:
             shoppingList.append(PRODUCT_LIST[0])
         elif i == 1 and rngList[i] < 0.50:
@@ -212,45 +216,50 @@ def GenerateShoppingList():
 def Shopping(env, name, shoppingList):
 
     global frozenFoodStock, nonFrozenFoodStock, beverageStock, nonPrescriptionMedicineStock, capacity
+    numOfUncollectedGoods = 0
 
     for i in range(0, len(shoppingList)):
 
         if shoppingList[i] == "Prescription Medicine":
             print('%s enters pharmacy queue (Queue length: %d)' % (name, len(pharmacy.queue)))
-            yield env.process(UseResource(env, name, pharmacy, OTHER_QUEUE_SERVICE_TIME))
+            numOfUncollectedGoods += yield env.process(UseResource(env, name, pharmacy, None, OTHER_QUEUE_SERVICE_TIME))
             print('%s exits pharmacy queue' % name)
             continue
         elif shoppingList[i] == "Meat":
             print('%s enters butcher queue (Queue length: %d)' % (name, len(butcher.queue)))
-            yield env.process(UseResource(env, name, butcher, OTHER_QUEUE_SERVICE_TIME))
+            numOfUncollectedGoods += yield env.process(UseResource(env, name, butcher, None, OTHER_QUEUE_SERVICE_TIME))
             print('%s exits butcher queue' % name)
             continue
         elif shoppingList[i] == "Pasteries":
             print('%s enters bakery queue (Queue length: %d)' % (name, len(bakery.queue)))
-            yield env.process(UseResource(env, name, bakery, OTHER_QUEUE_SERVICE_TIME))
+            numOfUncollectedGoods += yield env.process(UseResource(env, name, bakery, None, OTHER_QUEUE_SERVICE_TIME))
             print('%s exits bakery queue' % name)
             continue
 
         shoppingTime = random.expovariate(1.0 / SHOPPING_TIME)
         yield env.timeout(shoppingTime)
 
-        if shoppingList[i] == "Frozen Foods":
+        if shoppingList[i] == "Frozen Foods" and frozenFoodStock > 0:
             print('%s Taking 1 stock of Frozen Foods at %7.4f' % (name, env.now))
             frozenFoodStock -= 1
-        elif shoppingList[i] == "Non-Frozen Foods":
+        elif shoppingList[i] == "Non-Frozen Foods" and nonFrozenFoodStock > 0:
             print('%s Taking 1 stock of Non-Frozen Foods at %7.4f' % (name, env.now))
             nonFrozenFoodStock -= 1
-        elif shoppingList[i] == "Beverages":
+        elif shoppingList[i] == "Beverages" and beverageStock > 0:
             print('%s Taking 1 stock of Beverages at %7.4f' % (name, env.now))
             beverageStock -= 1
-        elif shoppingList[i] == "Non-Prescription Medicine":
+        elif shoppingList[i] == "Non-Prescription Medicine" and nonPrescriptionMedicineStock > 0:
             print('%s Taking 1 stock of Non-Prescription Medicine at %7.4f' % (name, env.now))
             nonPrescriptionMedicineStock -= 1
+        else:
+            numOfUncollectedGoods += 1
 
-    env.process(Checkout(env, name))
+    yield env.process(Checkout(env, name, shoppingList))
     capacity += 1
+    print("%s couldn't collect %d" % (name, numOfUncollectedGoods))
+    listOfUncollectedGoods.append(numOfUncollectedGoods)
 
-def Checkout(env, name):
+def Checkout(env, name, shoppingList):
 
     currentMin = len(cashiers[0].queue)
     selectedStation = cashiers[0]
@@ -270,10 +279,12 @@ def Checkout(env, name):
         print('%s Entering cashier checkout queue (Queue Length: %d)' % (name, len(selectedStation.queue)))
 
 
-    yield env.process(UseResource(env, name, selectedStation, CHECKOUT_SERVICE_TIME))
+    yield env.process(UseResource(env, name, selectedStation, shoppingList, CHECKOUT_SERVICE_TIME))
     print('%s Exiting checkout queue' % name)
 
-def UseResource(env, name, resource, serviceTime):
+def UseResource(env, name, resource, shoppingList, serviceTime):
+    global frozenFoodStock, nonFrozenFoodStock, beverageStock, nonPrescriptionMedicineStock
+
     with resource.request() as req:
 
         results = yield req | env.timeout(5400.0) # customer can wait 1.5 hr
@@ -283,7 +294,20 @@ def UseResource(env, name, resource, serviceTime):
             yield env.timeout(tis)
         else:
             print('Customer %s left the Queue' % name)
-
+            if resource == bakery or resource == butcher or resource == pharmacy:
+                return 1
+            else:
+                for i in range(0, len(shoppingList)):
+                    if shoppingList[i] == "Frozen Foods":
+                        frozenFoodStock += 1
+                    elif shoppingList[i] == "Non-Frozen Foods" and nonFrozenFoodStock > 0:
+                        nonFrozenFoodStock += 1
+                    elif shoppingList[i] == "Beverages" and beverageStock > 0:
+                        beverageStock += 1
+                    elif shoppingList[i] == "Non-Prescription Medicine" and nonPrescriptionMedicineStock > 0:
+                        nonPrescriptionMedicineStock += 1
+                return 0
+    return 0
 
 random.seed(RANDOM_SEED)
 env = simpy.Environment()
@@ -295,7 +319,7 @@ bakery = simpy.Resource(env, capacity=1)
 butcher = simpy.Resource(env, capacity=1)
 pharmacy = simpy.Resource(env, capacity=1)
 
-env.process(WeekEndSource(env))
+env.process(WeekDaySource(env))
 env.run()
 
 plt.subplot(2,2,1)
@@ -304,7 +328,7 @@ plt.hist(bins[:-1], bins, weights=counts)
 plt.title('Arrival Times')
 
 plt.subplot(2,2,2)
-plt.plot(storeCapacity)
+plt.plot(stocksAtTime)
 plt.title('Capacity')
 
 plt.show()
