@@ -1,5 +1,6 @@
 import simpy
 import random
+import threading
 import matplotlib.pyplot as plt
 import numpy as np
 
@@ -10,19 +11,22 @@ LOW_INTENSITY_INTERVAL = 90.0
 MEDIUM_INTENTSITY_INTERVAL = 30.0
 HIGH_INTENSITY_INTERVAL = 18.0
 
-SHOPPING_TIME = 60.0
-RESTOKE_TIME = 300.0
-CHECKOUT_SERVICE_TIME = 240.0
-OTHER_QUEUE_SERVICE_TIME = 60.0
+SHOPPING_TIME = 60.0 # 1 min in seconds
+RESTOKE_TIME = 300.0 # 5 mins in seconds
+CHECKOUT_SERVICE_TIME = 240.0 # 4 mins in seconds
+OTHER_QUEUE_SERVICE_TIME = 60.0 # 1 min in seconds
+PATIENCE_DURATION = 5400.0 # 1.5 hours in seconds
+SIMULATION_DURATION = 54000.0 # 15 hours in seconds
 
-MAX_STOCK = 200
+MAX_STOCK = 300
+STOCK_DANGER_ZONE = 200
 PRODUCT_LIST = ['Frozen Foods', 'Non-Frozen Foods', 'Beverages', 'Non-Prescription Medicine', 'Prescription Medicine', 'Meat', 'Pasteries']
 
 # Stock Variables
-frozenFoodStock = 200
-nonFrozenFoodStock = 200
-beverageStock = 200
-nonPrescriptionMedicineStock = 200
+frozenFoodStock = MAX_STOCK
+nonFrozenFoodStock = MAX_STOCK
+beverageStock = MAX_STOCK
+nonPrescriptionMedicineStock = MAX_STOCK
 restockingFrozenFood = False
 restockingNonFrozenFood = False
 restockingBeverage = False
@@ -35,50 +39,80 @@ capacity = 500
 arrivalTimes = []
 storeCapacity = []
 listOfUncollectedGoods = []
-stocksAtTime = []
+listOfFrozenFoodStock = []
+listOfNonFrozenFoodStock = []
+listOfBeverageStock = []
 
+# restocking process for frozenFoodStock
 def FrozenFoodRestockProcess(env):
     global frozenFoodStock, restockingFrozenFood
     print('Restocking Frozen Food at %7.4f' % env.now)
     restockTime = random.expovariate(1.0 / RESTOKE_TIME)
     yield env.timeout(restockTime)
-    frozenFoodStock = 200
+    frozenFoodStock = MAX_STOCK
     restockingFrozenFood = False
 
+# restocking process for nonFrozenFoodStock
 def NonFrozenFoodRestockProcess(env):
     global nonFrozenFoodStock, restockingNonFrozenFood
     print('Restocking Non-Frozen Food at %7.4f' % env.now)
     restockTime = random.expovariate(1.0 / RESTOKE_TIME)
     yield env.timeout(restockTime)
-    nonFrozenFoodStock = 200
+    nonFrozenFoodStock = MAX_STOCK
     restockingNonFrozenFood = False
 
+# restocking process for beverageStock
 def BeverageRestockProcess(env):
     global beverageStock, restockingBeverage
     print('Restocking Beverage at %7.4f' % env.now)
     restockTime = random.expovariate(1.0 / RESTOKE_TIME)
     yield env.timeout(restockTime)
-    beverageStock = 200
+    beverageStock = MAX_STOCK
     restockingBeverage = False
 
+# restocking process for nonPrescriptionMedicineStock
 def NonPrescriptionMedicineRestockProcess(env):
     global nonPrescriptionMedicineStock, restockingNonPrescriptionMedicine
     print('Restocking Non-Prescription Medicine at %7.4f' % env.now)
     restockTime = random.expovariate(1.0 / RESTOKE_TIME)
     yield env.timeout(restockTime)
-    nonPrescriptionMedicineStock = 200
+    nonPrescriptionMedicineStock = MAX_STOCK
     restockingNonPrescriptionMedicine = False
 
+# main restock process that handles restocking goods at the store
+def MainRestockProcess():
+    global restockingFrozenFood, restockingNonFrozenFood, restockingBeverage, restockingNonPrescriptionMedicine, env
+
+    while env.now < SIMULATION_DURATION:
+        if frozenFoodStock < STOCK_DANGER_ZONE and not restockingFrozenFood:
+            restockingFrozenFood = True
+            env.process(FrozenFoodRestockProcess(env))
+
+        if nonFrozenFoodStock < STOCK_DANGER_ZONE and not restockingNonFrozenFood:
+            restockingNonFrozenFood = True
+            env.process(NonFrozenFoodRestockProcess(env))
+
+        if beverageStock < STOCK_DANGER_ZONE and not restockingBeverage:
+            restockingBeverage = True
+            env.process(BeverageRestockProcess(env))
+
+        if nonPrescriptionMedicineStock < STOCK_DANGER_ZONE and not restockingNonPrescriptionMedicine:
+            restockingNonPrescriptionMedicine = True
+            env.process(NonPrescriptionMedicineRestockProcess(env))
+
+# weekday simulation driver
 def WeekDaySource(env):
-    global frozenFoodStock, nonFrozenFoodStock, beverageStock, nonPrescriptionMedicineStock, restockingFrozenFood, restockingNonFrozenFood, restockingBeverage, restockingNonPrescriptionMedicine, capacity
+    global frozenFoodStock, nonFrozenFoodStock, beverageStock, nonPrescriptionMedicineStock, capacity
     customerNum = 1
     interArrival = 0.0
 
-    while env.now < 54000.0: # 15 hour work day in seconds
-
-        stocksAtTime.append(frozenFoodStock)
+    while env.now < SIMULATION_DURATION: # 15 hour work day in seconds
 
         storeCapacity.append(capacity)
+
+        listOfFrozenFoodStock.append(frozenFoodStock)
+        listOfNonFrozenFoodStock.append(nonFrozenFoodStock)
+        listOfBeverageStock.append(beverageStock)
 
         if capacity == 0:
             print('Customer tried to enter the store but was full')
@@ -90,14 +124,13 @@ def WeekDaySource(env):
 
             shoppingList = GenerateShoppingList()
 
-            #print(shoppingList)
-
             print("customer %02d arrived at %7.4f" % (customerNum, env.now))
 
             s = Shopping(env, "Customer %02d" % customerNum, shoppingList)
 
             env.process(s)
 
+            # setting up new interarrival time
             if env.now < 14400.0:
                 interArrival = random.expovariate(1.0 / LOW_INTENSITY_INTERVAL)
             elif env.now < 32400.0:
@@ -109,36 +142,23 @@ def WeekDaySource(env):
             elif env.now < 54000.0:
                 interArrival = random.expovariate(1.0 / LOW_INTENSITY_INTERVAL)
 
-            #print("interArrival Time %7.4f at %7.4f" % (interArrival, env.now))
-
-            if frozenFoodStock < 50 and not restockingFrozenFood:
-                restockingFrozenFood = True
-                env.process(FrozenFoodRestockProcess(env))
-
-            if nonFrozenFoodStock < 50 and not restockingNonFrozenFood:
-                restockingNonFrozenFood = True
-                env.process(NonFrozenFoodRestockProcess(env))
-
-            if beverageStock < 50 and not restockingBeverage:
-                restockingBeverage = True
-                env.process(BeverageRestockProcess(env))
-
-            if nonPrescriptionMedicineStock < 50 and not restockingNonPrescriptionMedicine:
-                restockingNonPrescriptionMedicine = True
-                env.process(NonPrescriptionMedicineRestockProcess(env))
-
             customerNum += 1
 
         yield env.timeout(interArrival)
 
+# weekend simulation driver
 def WeekEndSource(env):
     global frozenFoodStock, nonFrozenFoodStock, beverageStock, nonPrescriptionMedicineStock, restockingFrozenFood, restockingNonFrozenFood, restockingBeverage, restockingNonPrescriptionMedicine, capacity
     customerNum = 1
     interArrival = 0.0
 
-    while env.now < 54000.0: # 15 hour work day in seconds
+    while env.now < SIMULATION_DURATION: # 15 hour work day in seconds
 
         storeCapacity.append(capacity)
+
+        listOfFrozenFoodStock.append(frozenFoodStock)
+        listOfNonFrozenFoodStock.append(nonFrozenFoodStock)
+        listOfBeverageStock.append(beverageStock)
 
         if capacity == 0:
             print('Customer tried to enter the store but was full')
@@ -149,8 +169,6 @@ def WeekEndSource(env):
             arrivalTimes.append(env.now)
 
             shoppingList = GenerateShoppingList()
-
-            #print(shoppingList)
 
             print("customer %d arrived at %7.4f" % (customerNum, env.now))
 
@@ -169,28 +187,11 @@ def WeekEndSource(env):
             elif env.now < 54000.0:
                 interArrival = random.expovariate(1.0 / LOW_INTENSITY_INTERVAL)
 
-            #print("interArrival Time %7.4f at %7.4f" % (interArrival, env.now))
-
-            if frozenFoodStock < 50 and not restockingFrozenFood:
-                restockingFrozenFood = True
-                env.process(FrozenFoodRestockProcess(env))
-
-            if nonFrozenFoodStock < 50 and not restockingNonFrozenFood:
-                restockingNonFrozenFood = True
-                env.process(NonFrozenFoodRestockProcess(env))
-
-            if beverageStock < 50 and not restockingBeverage:
-                restockingBeverage = True
-                env.process(BeverageRestockProcess(env))
-
-            if nonPrescriptionMedicineStock < 50 and not restockingNonPrescriptionMedicine:
-                restockingNonPrescriptionMedicine = True
-                env.process(NonPrescriptionMedicineRestockProcess(env))
-
             customerNum += 1
 
         yield env.timeout(interArrival)
 
+# generates the shopping list for a customer
 def GenerateShoppingList():
     shoppingList = []
     rngList = [random.random(),random.random(),random.random(),random.random(),random.random(),random.random(),random.random()]
@@ -213,6 +214,7 @@ def GenerateShoppingList():
 
     return shoppingList
 
+# shopping process for customers so that they can enter queues and collect goods
 def Shopping(env, name, shoppingList):
 
     global frozenFoodStock, nonFrozenFoodStock, beverageStock, nonPrescriptionMedicineStock, capacity
@@ -259,6 +261,8 @@ def Shopping(env, name, shoppingList):
     print("%s couldn't collect %d" % (name, numOfUncollectedGoods))
     listOfUncollectedGoods.append(numOfUncollectedGoods)
 
+# final process for customers after having finished shopping to enter checkout queues
+# picks the best queue for the customer in their perspective
 def Checkout(env, name, shoppingList):
 
     currentMin = len(cashiers[0].queue)
@@ -282,12 +286,13 @@ def Checkout(env, name, shoppingList):
     yield env.process(UseResource(env, name, selectedStation, shoppingList, CHECKOUT_SERVICE_TIME))
     print('%s Exiting checkout queue' % name)
 
+# Generic function that handles waiting in a queue for a resource and using a resource
 def UseResource(env, name, resource, shoppingList, serviceTime):
     global frozenFoodStock, nonFrozenFoodStock, beverageStock, nonPrescriptionMedicineStock
 
     with resource.request() as req:
 
-        results = yield req | env.timeout(5400.0) # customer can wait 1.5 hr
+        results = yield req | env.timeout(PATIENCE_DURATION) # customer can wait 1.5 hr
 
         if req in results:
             tis = random.expovariate(1.0 / serviceTime)
@@ -312,6 +317,10 @@ def UseResource(env, name, resource, shoppingList, serviceTime):
 random.seed(RANDOM_SEED)
 env = simpy.Environment()
 
+# starting restocking process in background
+restockThread = threading.Thread(target=MainRestockProcess, name="Restock_Process")
+restockThread.start()
+
 # resources
 cashiers = [simpy.Resource(env, capacity=1),simpy.Resource(env, capacity=1),simpy.Resource(env, capacity=1),simpy.Resource(env, capacity=1),simpy.Resource(env, capacity=1),simpy.Resource(env, capacity=1)]
 selfCheckout = simpy.Resource(env, capacity=4)
@@ -319,7 +328,7 @@ bakery = simpy.Resource(env, capacity=1)
 butcher = simpy.Resource(env, capacity=1)
 pharmacy = simpy.Resource(env, capacity=1)
 
-env.process(WeekDaySource(env))
+env.process(WeekEndSource(env))
 env.run()
 
 plt.subplot(2,2,1)
@@ -328,7 +337,15 @@ plt.hist(bins[:-1], bins, weights=counts)
 plt.title('Arrival Times')
 
 plt.subplot(2,2,2)
-plt.plot(stocksAtTime)
-plt.title('Capacity')
+plt.plot(listOfFrozenFoodStock)
+plt.title('Frozen Foods')
+
+plt.subplot(2,2,3)
+plt.plot(listOfNonFrozenFoodStock)
+plt.title('Non Frozen Foods')
+
+plt.subplot(2,2,4)
+plt.plot(listOfBeverageStock)
+plt.title('Beverage Foods')
 
 plt.show()
