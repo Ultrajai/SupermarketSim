@@ -1,0 +1,33 @@
+COVID Weekend Version:
+Max num in bakery =  12
+Max num in butcher =  6
+Max num in pharmacy =  47
+Max num in self checkout =  41
+Max num in cashier checkout =  32
+Num of people who reneg =  1004
+
+
+COVID Weekday Version:
+Max num in bakery =  30
+Max num in butcher =  8
+Max num in pharmacy =  25
+Max num in self checkout =  37
+Max num in cashier checkout =  29
+Num of people who reneg =  357
+
+
+Normal Weekday Version:
+Max num in bakery =  11
+Max num in butcher =  14
+Max num in pharmacy =  20
+Max num in self checkout =  27
+Max num in cashier checkout =  19
+Num of people who reneg =  2
+
+Normal Weekend Version:
+Max num in bakery =  33
+Max num in butcher =  9
+Max num in pharmacy =  16
+Max num in self checkout =  35
+Max num in cashier checkout =  28
+Num of people who reneg =  59
