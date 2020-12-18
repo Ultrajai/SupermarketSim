@@ -11,9 +11,9 @@ LOW_INTENSITY_INTERVAL = 90.0
 MEDIUM_INTENSITY_INTERVAL = 30.0
 HIGH_INTENSITY_INTERVAL = 18.0
 
-COVID_LOW_INTENSITY_INTERVAL = 45.0
-COVID_MEDIUM_INTENSITY_INTERVAL = 15.0
-COVID_HIGH_INTENSITY_INTERVAL = 9.0
+COVID_LOW_INTENSITY_INTERVAL = 90.0
+COVID_MEDIUM_INTENSITY_INTERVAL = 30.0
+COVID_HIGH_INTENSITY_INTERVAL = 12.0
 
 SHOPPING_TIME = 60.0 # 1 min in seconds
 RESTOKE_TIME = 300.0 # 5 mins in seconds
@@ -265,19 +265,21 @@ def WeekDaySource(env):
 
             env.process(s)
 
-            # setting up new interarrival time
-            if env.now < 14400.0:
-                interArrival = random.expovariate(1.0 / LOW_INTENSITY_INTERVAL)
-            elif env.now < 32400.0:
-                interArrival = random.expovariate(1.0 / MEDIUM_INTENSITY_INTERVAL)
-            elif env.now < 46800.0:
-                interArrival = random.expovariate(1.0 / HIGH_INTENSITY_INTERVAL)
-            elif env.now < 50400.0:
-                interArrival = random.expovariate(1.0 / MEDIUM_INTENSITY_INTERVAL)
-            elif env.now < 54000.0:
-                interArrival = random.expovariate(1.0 / LOW_INTENSITY_INTERVAL)
+
 
             customerNum += 1
+
+        # setting up new interarrival time
+        if env.now < 14400.0:
+            interArrival = random.expovariate(1.0 / LOW_INTENSITY_INTERVAL)
+        elif env.now < 32400.0:
+            interArrival = random.expovariate(1.0 / MEDIUM_INTENSITY_INTERVAL)
+        elif env.now < 46800.0:
+            interArrival = random.expovariate(1.0 / HIGH_INTENSITY_INTERVAL)
+        elif env.now < 50400.0:
+            interArrival = random.expovariate(1.0 / MEDIUM_INTENSITY_INTERVAL)
+        elif env.now < 54000.0:
+            interArrival = random.expovariate(1.0 / LOW_INTENSITY_INTERVAL)
 
         yield env.timeout(interArrival)
 
@@ -311,18 +313,18 @@ def WeekEndSource(env):
 
             env.process(s)
 
-            if env.now < 3600.0:
-                interArrival = random.expovariate(1.0 / LOW_INTENSITY_INTERVAL)
-            elif env.now < 14400.0:
-                interArrival = random.expovariate(1.0 / MEDIUM_INTENSITY_INTERVAL)
-            elif env.now < 43200.0:
-                interArrival = random.expovariate(1.0 / HIGH_INTENSITY_INTERVAL)
-            elif env.now < 50400.0:
-                interArrival = random.expovariate(1.0 / MEDIUM_INTENSITY_INTERVAL)
-            elif env.now < 54000.0:
-                interArrival = random.expovariate(1.0 / LOW_INTENSITY_INTERVAL)
-
             customerNum += 1
+
+        if env.now < 3600.0:
+            interArrival = random.expovariate(1.0 / LOW_INTENSITY_INTERVAL)
+        elif env.now < 14400.0:
+            interArrival = random.expovariate(1.0 / MEDIUM_INTENSITY_INTERVAL)
+        elif env.now < 43200.0:
+            interArrival = random.expovariate(1.0 / HIGH_INTENSITY_INTERVAL)
+        elif env.now < 50400.0:
+            interArrival = random.expovariate(1.0 / MEDIUM_INTENSITY_INTERVAL)
+        elif env.now < 54000.0:
+            interArrival = random.expovariate(1.0 / LOW_INTENSITY_INTERVAL)
 
         yield env.timeout(interArrival)
 
@@ -356,19 +358,19 @@ def CovidWeekDaySource(env):
 
             env.process(s)
 
-            # setting up new interarrival time
-            if env.now < 14400.0:
-                interArrival = random.expovariate(1.0 / COVID_LOW_INTENSITY_INTERVAL)
-            elif env.now < 32400.0:
-                interArrival = random.expovariate(1.0 / COVID_MEDIUM_INTENSITY_INTERVAL)
-            elif env.now < 46800.0:
-                interArrival = random.expovariate(1.0 / COVID_HIGH_INTENSITY_INTERVAL)
-            elif env.now < 50400.0:
-                interArrival = random.expovariate(1.0 / COVID_MEDIUM_INTENSITY_INTERVAL)
-            elif env.now < 54000.0:
-                interArrival = random.expovariate(1.0 / COVID_LOW_INTENSITY_INTERVAL)
-
             customerNum += 1
+
+        # setting up new interarrival time
+        if env.now < 14400.0:
+            interArrival = random.expovariate(1.0 / COVID_LOW_INTENSITY_INTERVAL)
+        elif env.now < 32400.0:
+            interArrival = random.expovariate(1.0 / COVID_MEDIUM_INTENSITY_INTERVAL)
+        elif env.now < 46800.0:
+            interArrival = random.expovariate(1.0 / COVID_HIGH_INTENSITY_INTERVAL)
+        elif env.now < 50400.0:
+            interArrival = random.expovariate(1.0 / COVID_MEDIUM_INTENSITY_INTERVAL)
+        elif env.now < 54000.0:
+            interArrival = random.expovariate(1.0 / COVID_LOW_INTENSITY_INTERVAL)
 
         yield env.timeout(interArrival)
 
@@ -402,18 +404,18 @@ def CovidWeekEndSource(env):
 
             env.process(s)
 
-            if env.now < 3600.0:
-                interArrival = random.expovariate(1.0 / COVID_LOW_INTENSITY_INTERVAL)
-            elif env.now < 14400.0:
-                interArrival = random.expovariate(1.0 / COVID_MEDIUM_INTENSITY_INTERVAL)
-            elif env.now < 43200.0:
-                interArrival = random.expovariate(1.0 / COVID_HIGH_INTENSITY_INTERVAL)
-            elif env.now < 50400.0:
-                interArrival = random.expovariate(1.0 / COVID_MEDIUM_INTENSITY_INTERVAL)
-            elif env.now < 54000.0:
-                interArrival = random.expovariate(1.0 / COVID_LOW_INTENSITY_INTERVAL)
-
             customerNum += 1
+
+        if env.now < 3600.0:
+            interArrival = random.expovariate(1.0 / COVID_LOW_INTENSITY_INTERVAL)
+        elif env.now < 14400.0:
+            interArrival = random.expovariate(1.0 / COVID_MEDIUM_INTENSITY_INTERVAL)
+        elif env.now < 43200.0:
+            interArrival = random.expovariate(1.0 / COVID_HIGH_INTENSITY_INTERVAL)
+        elif env.now < 50400.0:
+            interArrival = random.expovariate(1.0 / COVID_MEDIUM_INTENSITY_INTERVAL)
+        elif env.now < 54000.0:
+            interArrival = random.expovariate(1.0 / COVID_LOW_INTENSITY_INTERVAL)
 
         yield env.timeout(interArrival)
 
@@ -431,7 +433,7 @@ bakery = simpy.Resource(env, capacity=1)
 butcher = simpy.Resource(env, capacity=1)
 pharmacy = simpy.Resource(env, capacity=1)
 
-env.process(CovidWeekEndSource(env))
+env.process(CovidWeekDaySource(env))
 env.run()
 
 #plt.subplot(2,2,1)
@@ -440,8 +442,8 @@ env.run()
 #plt.title('Arrival Times')
 
 plt.subplot(2,2,1)
-plt.plot(listOfFrozenFoodStock)
-plt.title('Medicine')
+plt.plot(storeCapacity)
+plt.title('Capacity')
 
 plt.subplot(2,2,2)
 plt.plot(listOfFrozenFoodStock)
